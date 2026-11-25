@@ -1,0 +1,1118 @@
+<!-- file: index.html -->
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Шлях Плутона</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; overflow: hidden; background: #06142e; color: white; font-family: Arial, sans-serif; user-select: none; }
+    canvas { display: block; width: 100vw; height: 100vh; touch-action: none; cursor: crosshair; }
+    button { padding: 8px 11px; border: 1px solid #c8f4ff; border-radius: 10px; background: #91e8ff; color: #04213b; font-weight: bold; cursor: pointer; }
+    button:hover:not(:disabled) { background: #d0f8ff; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+
+    #hud { position: fixed; inset: 0; z-index: 2; padding: 14px; pointer-events: none; text-shadow: 0 2px 4px #000; }
+    .panel { padding: 10px 13px; border: 1px solid rgba(182,237,255,.48); border-radius: 13px; background: rgba(3,12,37,.8); box-shadow: 0 7px 24px #0007; backdrop-filter: blur(6px); }
+    #top { display: flex; justify-content: space-between; gap: 10px; }
+    #title { color: #c8f2ff; font-size: 20px; font-weight: bold; }
+    #place { margin-top: 4px; color: #ffe67f; font-size: 14px; font-weight: bold; }
+    #stats { color: #ddf5ff; text-align: right; font-size: 13px; line-height: 1.5; }
+    #stats button { margin-top: 7px; padding: 6px 8px; font-size: 11px; pointer-events: auto; }
+    #restart { background: #bfdbea; }
+    #message { position: absolute; top: 16%; left: 50%; width: min(92vw,740px); transform: translateX(-50%); text-align: center; color: #fff3af; font-size: clamp(24px,5vw,46px); font-weight: bold; }
+    #message small { display: block; margin-top: 8px; color: #ddf4ff; font-size: 14px; font-weight: normal; }
+    #help { position: absolute; bottom: 14px; left: 14px; max-width: 500px; color: #def4ff; font-size: 12px; line-height: 1.5; }
+
+    #controls { position: fixed; z-index: 4; right: 16px; bottom: 16px; display: flex; gap: 8px; }
+    .control { width: 58px; height: 54px; padding: 0; border-radius: 16px; background: rgba(12,91,150,.92); color: white; font-size: 22px; box-shadow: 0 5px 0 #02182e; touch-action: none; }
+    .jump { width: 76px; background: #c3ef72; color: #192900; font-size: 12px; }
+    .control:active { transform: translateY(4px); box-shadow: 0 1px 0 #02182e; }
+
+    .overlay { position: fixed; inset: 0; z-index: 10; display: none; align-items: center; justify-content: center; padding: 18px; background: rgba(0,5,20,.76); }
+    .overlay.open { display: flex; }
+    .window { width: min(94vw,730px); max-height: 88vh; overflow-y: auto; padding: 21px; border: 2px solid #83ddff; border-radius: 20px; background: linear-gradient(145deg,#143a69,#07152f); box-shadow: 0 15px 55px #000b; }
+    .header { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+    h1,h2 { margin: 0; color: #ffe97c; }
+    #startCard { text-align: center; max-width: 620px; }
+    #startCard h1 { font-size: clamp(36px,8vw,62px); }
+    .planet { width: 110px; height: 110px; margin: 0 auto 15px; border-radius: 50%; background: radial-gradient(circle at 30% 27%,#f5ffff,#7dbbd5 40%,#244866 74%); box-shadow: 0 0 45px #91eaffaa; }
+    .tips { display: grid; grid-template-columns: repeat(3,1fr); gap: 9px; margin: 18px 0; text-align: left; }
+    .tip,.shopItem { padding: 12px; border: 1px solid #b7ebff55; border-radius: 13px; background: #071936b8; color: #dff5ff; font-size: 13px; line-height: 1.4; }
+    #startButton { padding: 13px 27px; font-size: 17px; }
+    #resetSave { background: #f0cccc; margin-left: 6px; }
+
+    #shopCoins { padding: 8px 11px; border-radius: 10px; background: #0005; color: #fff0a5; font-weight: bold; }
+    #closeShop { background: #315c86; color: white; }
+    #shopItems { display: grid; grid-template-columns: repeat(2,1fr); gap: 12px; margin-top: 15px; }
+    .shopItem h3 { margin: 0 0 6px; color: #bff4ff; }
+    .shopItem p { min-height: 38px; margin: 0 0 8px; }
+    .shopItem button { width: 100%; margin-top: 8px; }
+    .shopLevel { color: #ffeb86; font-size: 12px; font-weight: bold; }
+
+    @media(max-width:600px) {
+      #help { max-width: 280px; font-size: 10px; }
+      #title { font-size: 16px; }
+      #stats { font-size: 11px; }
+      .control { width: 48px; height: 48px; }
+      .jump { width: 63px; }
+      .tips,#shopItems { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <div id="hud">
+    <div id="top">
+      <div class="panel">
+        <div id="title">🪐 ШЛЯХ ПЛУТОНА</div>
+        <div id="place">Безодня Челленджера</div>
+      </div>
+      <div id="stats" class="panel">
+        🪙 <span id="coins">0</span> · ❤️ <span id="lives">❤️❤️❤️</span><br>
+        Рівень: <span id="level">1</span> / 6 · 🪜 <span id="ramps">5</span><br>
+        Макс. довжина: <span id="length">310</span> px<br>
+        Висота: <span id="height">0</span> м<br>
+        <button id="shopButton">🛒 Магазин</button>
+        <button id="restart">↻ Рестарт</button>
+      </div>
+    </div>
+    <div id="message"></div>
+    <div id="help" class="panel">
+      <b>A / D</b> — рух · <b>W / Пробіл</b> — стрибок · <b>Esc</b> — пауза<br>
+      У трампліна достатньо <b>одного</b> кріплення. Після встановлення він плавно рухається.
+    </div>
+  </div>
+
+  <div id="controls">
+    <button class="control" id="left">◀</button>
+    <button class="control jump" id="jump">JUMP</button>
+    <button class="control" id="right">▶</button>
+  </div>
+
+  <div class="overlay open" id="startOverlay">
+    <div class="window" id="startCard">
+      <div class="planet"></div>
+      <h1>ШЛЯХ ПЛУТОНА</h1>
+      <p><b>Допоможи Плутону дістатися додому!</b><br>Малюй рухомі трампліни, стрибай вище та збирай монети.</p>
+      <div class="tips">
+        <div class="tip">🪜 <b>Один кінець</b><br>Трампліну вистачає одного прикріпленого кінця.</div>
+        <div class="tip">↔️ <b>Рух трампліна</b><br>Трампліни повільно рухаються з великою амплітудою.</div>
+        <div class="tip">🛒 <b>Покращення</b><br>Купуй силу стрибка, швидкість і щити.</div>
+      </div>
+      <button id="startButton">🚀 Почати</button>
+      <button id="resetSave">Стерти збереження</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="shopOverlay">
+    <div class="window">
+      <div class="header">
+        <h2>🛒 Магазин Плутона</h2>
+        <div id="shopCoins">🪙 0</div>
+        <button id="closeShop">✕</button>
+      </div>
+      <p>Монети й покращення зберігаються у браузері.</p>
+      <div id="shopItems">
+        <div class="shopItem"><h3>🚀 Суперстрибок</h3><p>Плутон стрибає вище.</p><div class="shopLevel">Рівень: <span id="jumpUpgradeLevel">0</span> / 3</div><button id="buyJump">Купити — 🪙 30</button></div>
+        <div class="shopItem"><h3>⚡ Турбо-рух</h3><p>Плутон швидше рухається.</p><div class="shopLevel">Рівень: <span id="speedUpgradeLevel">0</span> / 3</div><button id="buySpeed">Купити — 🪙 30</button></div>
+        <div class="shopItem"><h3>📏 Довші трампліни</h3><p>Нові трампліни стають довшими.</p><div class="shopLevel">Рівень: <span id="rampUpgradeLevel">0</span> / 3</div><button id="buyRamp">Купити — 🪙 35</button></div>
+        <div class="shopItem"><h3>🛡️ Рятувальний щит</h3><p>Рятує після падіння у прірву.</p><div class="shopLevel">Щитів: <span id="shieldCount">0</span></div><button id="buyShield">Купити — 🪙 20</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="pauseOverlay">
+    <div class="window" style="text-align:center">
+      <h2>⏸ ПАУЗА</h2>
+      <p>Плутон чекає на тебе.</p>
+      <button id="continueButton">▶ Продовжити</button>
+      <button id="pauseRestart">↻ Рестарт рівня</button>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+    const $ = id => document.getElementById(id);
+
+    let W = innerWidth, H = innerHeight, level = 0, lives = 3;
+    let platforms = [], ramps = [], zombies = [], lavaPools = [], stars = [];
+    let player, goal, rampsLeft = 5, drawing = false, start = null, end = null;
+    let previewValid = false, started = false, paused = false, shopOpen = false, won = false, intro = 0;
+
+    const keys = {};
+    const touch = { left:false, right:false };
+    const GRAVITY = .78, MAX_FALL = 20, ATTACH = 42, MAX_LIVES = 3;
+    const FIRST_LENGTH = 310, SHORTEN = 38, MIN_LENGTH = 60;
+
+    const worlds = [
+      {name:"Безодня Челленджера",colors:["#03142e","#087d91"],ramps:5,count:4},
+      {name:"Поверхня Тихого океану",colors:["#075c92","#88e0f3"],ramps:5,count:5},
+      {name:"Небо Землі",colors:["#172d7c","#8bd8ff"],ramps:4,count:6},
+      {name:"Місяць",colors:["#161823","#898b97"],ramps:4,count:7},
+      {name:"Марс",colors:["#461914","#d7663b"],ramps:3,count:8},
+      {name:"Плутон — пояс Койпера",colors:["#101e4b","#a5cdfd"],ramps:3,count:9}
+    ];
+
+    let saved = {};
+    try {
+      saved = JSON.parse(localStorage.getItem("plutoJourneySave")) || {};
+    } catch(e) {}
+
+    let coins = saved.coins || 0;
+    const upgrades = Object.assign({jump:0,speed:0,ramp:0,shields:0}, saved.upgrades || {});
+
+    function saveGame() {
+      localStorage.setItem("plutoJourneySave", JSON.stringify({coins,upgrades}));
+    }
+
+    function maxRampLength() {
+      return Math.max(MIN_LENGTH, FIRST_LENGTH + upgrades.ramp * 35 - ramps.length * SHORTEN);
+    }
+
+    function jumpPower() {
+      return -12.5 - upgrades.jump * 1.3;
+    }
+
+    function maxSpeed() {
+      return 7.5 + upgrades.speed * 1.15;
+    }
+
+    function moveForce() {
+      return .5 + upgrades.speed * .06;
+    }
+
+    function startPos() {
+      return {x:Math.max(60,W*.1),y:H-103};
+    }
+
+    function message(title,text,time=100) {
+      $("message").innerHTML = `${title}<small>${text}</small>`;
+      intro = time;
+    }
+
+    function makeStars() {
+      stars = Array.from({length:120}, () => ({
+        x:Math.random()*W,
+        y:Math.random()*H,
+        r:Math.random()*1.8+.2,
+        a:Math.random()*.8+.15
+      }));
+    }
+
+    function addPlatform(x,y,width,height=21,moving=false,range=0,speed=0) {
+      platforms.push({x,y,width,height,startX:x,previousX:x,moving,range,speed,phase:Math.random()*7});
+    }
+
+    function loadLevel(showText=true) {
+      const world = worlds[level];
+      const floor = H - 75;
+      const count = world.count;
+      const step = Math.min(84,(H-180)/(count+1));
+      const width = Math.max(105,Math.min(190,W*.2));
+      const pos = startPos();
+
+      ramps = [];
+      zombies = [];
+      lavaPools = [];
+      platforms = [];
+      rampsLeft = world.ramps;
+      won = false;
+
+      player = {
+        x:pos.x, y:pos.y,
+        previousX:pos.x, previousY:pos.y,
+        vx:0, vy:0,
+        radius:24,
+        grounded:false,
+        coyote:0,
+        rampCooldown:0,
+        damageCooldown:0
+      };
+
+      addPlatform(-30,floor,W+60,100);
+
+      for(let i=0;i<count;i++) {
+        const side = i % 2 === 0 ? .68 : .12;
+        const x = Math.max(15,Math.min(W-width-15,W*(side+(i%3===0?level*.025:0))));
+        const moving = level>=1 && (i+level)%3===1;
+        addPlatform(x,floor-step*(i+1),width,21,moving,moving?35+level*10:0,moving?.018+level*.003:0);
+      }
+
+      for(let i=1;i<platforms.length-1;i++) {
+        const p = platforms[i];
+
+        if((i+level)%2===0) {
+          zombies.push({
+            platform:p,
+            offset:p.width/2,
+            direction:Math.random()<.5?-1:1,
+            speed:1+level*.13,
+            radius:17,
+            x:0,
+            y:0
+          });
+        }
+
+        if(level>=3 && (i+level)%3===0) {
+          lavaPools.push({
+            platform:p,
+            width:p.width*(level>=4?.46:.34),
+            height:12,
+            x:0,
+            y:0
+          });
+        }
+      }
+
+      const last = platforms.at(-1);
+      goal = {x:last.x+last.width*.72,y:last.y-39,radius:23};
+
+      $("place").textContent = world.name;
+
+      if(showText) {
+        message(`РІВЕНЬ ${level+1}`,"Трампліни повільно рухаються, тому обирай момент для стрибка!",180);
+      } else {
+        $("message").textContent = "";
+      }
+
+      updateUI();
+    }
+
+    function updateUI() {
+      $("coins").textContent = coins;
+      $("lives").textContent = lives > 0 ? "❤️".repeat(lives) : "0";
+      $("level").textContent = level + 1;
+      $("ramps").textContent = rampsLeft;
+      $("length").textContent = Math.round(maxRampLength());
+      $("height").textContent = player ? Math.max(0,Math.round((H-75-player.y)*10)) : 0;
+    }
+
+    function updateShop() {
+      $("shopCoins").textContent = "🪙 " + coins;
+
+      ["jump","speed","ramp"].forEach(type => {
+        $(type+"UpgradeLevel").textContent = upgrades[type];
+      });
+
+      $("shieldCount").textContent = upgrades.shields;
+
+      [["Jump","jump",30],["Speed","speed",30],["Ramp","ramp",35]].forEach(([id,type,cost]) => {
+        const button = $("buy"+id);
+        const full = upgrades[type] >= 3;
+        button.textContent = full ? "Максимальний рівень" : "Купити — 🪙 " + cost;
+        button.disabled = full || coins < cost;
+      });
+
+      $("buyShield").disabled = coins < 20;
+    }
+
+    function openShop() {
+      if(!started) return;
+      shopOpen = true;
+      $("shopOverlay").classList.add("open");
+      updateShop();
+    }
+
+    function closeShop() {
+      shopOpen = false;
+      $("shopOverlay").classList.remove("open");
+    }
+
+    function openPause() {
+      if(started && !shopOpen && !won) {
+        paused = true;
+        $("pauseOverlay").classList.add("open");
+      }
+    }
+
+    function closePause() {
+      paused = false;
+      $("pauseOverlay").classList.remove("open");
+    }
+
+    function buy(type,cost) {
+      if(coins < cost || (type !== "shield" && upgrades[type] >= 3)) return;
+
+      coins -= cost;
+
+      if(type === "shield") {
+        upgrades.shields++;
+      } else {
+        upgrades[type]++;
+      }
+
+      saveGame();
+      updateUI();
+      updateShop();
+    }
+
+    function drawBackground() {
+      const world = worlds[level];
+      const gradient = ctx.createLinearGradient(0,0,0,H);
+
+      gradient.addColorStop(0,world.colors[0]);
+      gradient.addColorStop(1,world.colors[1]);
+
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0,0,W,H);
+
+      for(const star of stars) {
+        ctx.globalAlpha = level < 2 ? star.a*.25 : star.a;
+        ctx.fillStyle = "#fff";
+        ctx.beginPath();
+        ctx.arc(star.x,star.y,star.r,0,Math.PI*2);
+        ctx.fill();
+      }
+
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = "#fff3";
+      ctx.font = "bold 18px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText(world.name,W/2,39);
+    }
+
+    function drawPlatform(p) {
+      const d = 13;
+
+      ctx.fillStyle = "#0005";
+      ctx.fillRect(p.x+9,p.y+p.height+d,p.width,8);
+
+      ctx.fillStyle = p.moving ? "#163d62" : "#1a2935";
+      ctx.fillRect(p.x,p.y,p.width,p.height);
+
+      ctx.fillStyle = p.moving ? "#317aa0" : "#385664";
+      ctx.beginPath();
+      ctx.moveTo(p.x+p.width,p.y);
+      ctx.lineTo(p.x+p.width+d,p.y-d);
+      ctx.lineTo(p.x+p.width+d,p.y+p.height-d);
+      ctx.lineTo(p.x+p.width,p.y+p.height);
+      ctx.fill();
+
+      ctx.fillStyle = p.moving ? "#70dbff" : "#70d398";
+      ctx.beginPath();
+      ctx.moveTo(p.x,p.y);
+      ctx.lineTo(p.x+d,p.y-d);
+      ctx.lineTo(p.x+p.width+d,p.y-d);
+      ctx.lineTo(p.x+p.width,p.y);
+      ctx.fill();
+
+      ctx.fillStyle = p.moving ? "#d0f8ff" : "#b7f6c8";
+      ctx.fillRect(p.x,p.y,p.width,4);
+    }
+
+    function drawRamp(r,preview=false,valid=true) {
+      const main = valid ? "#e68f25" : "#de4040";
+      const dark = valid ? "#81400d" : "#7f1520";
+
+      ctx.save();
+      ctx.globalAlpha = preview ? .7 : 1;
+      ctx.lineCap = "round";
+
+      ctx.strokeStyle = dark;
+      ctx.lineWidth = 21;
+      ctx.beginPath();
+      ctx.moveTo(r.x1+4,r.y1+6);
+      ctx.lineTo(r.x2+4,r.y2+6);
+      ctx.stroke();
+
+      ctx.strokeStyle = main;
+      ctx.lineWidth = 16;
+      ctx.beginPath();
+      ctx.moveTo(r.x1,r.y1);
+      ctx.lineTo(r.x2,r.y2);
+      ctx.stroke();
+
+      ctx.strokeStyle = valid ? "#fff0a0" : "#ffd0d0";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(r.x1,r.y1-2);
+      ctx.lineTo(r.x2,r.y2-2);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    function drawLava(l) {
+      const t = Date.now()/180;
+
+      ctx.save();
+      ctx.shadowColor = "#ff4b18";
+      ctx.shadowBlur = 15;
+
+      ctx.fillStyle = "#b91d10";
+      ctx.fillRect(l.x,l.y,l.width,l.height);
+
+      ctx.fillStyle = "#ff711c";
+      ctx.beginPath();
+      ctx.moveTo(l.x,l.y+4);
+
+      for(let x=l.x;x<=l.x+l.width;x+=8) {
+        ctx.lineTo(x,l.y+4+Math.sin(x*.12+t)*3);
+      }
+
+      ctx.lineTo(l.x+l.width,l.y+l.height);
+      ctx.lineTo(l.x,l.y+l.height);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawGoal() {
+      const pulse = 1 + Math.sin(Date.now()/150)*.1;
+
+      ctx.save();
+      ctx.translate(goal.x,goal.y);
+      ctx.scale(pulse,pulse);
+      ctx.shadowColor = "#fff59a";
+      ctx.shadowBlur = 25;
+      ctx.fillStyle = "#ffe15a";
+      ctx.beginPath();
+
+      for(let i=0;i<10;i++) {
+        const a = -Math.PI/2+i*Math.PI/5;
+        const r = i%2 ? 10 : 26;
+        ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r);
+      }
+
+      ctx.fill();
+      ctx.restore();
+
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 11px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText("ЦІЛЬ",goal.x,goal.y-40);
+    }
+
+    function drawZombie(z) {
+      ctx.save();
+      ctx.translate(z.x,z.y);
+      ctx.shadowColor = "#8aff76";
+      ctx.shadowBlur = 12;
+
+      ctx.fillStyle = "#71cf5e";
+      ctx.beginPath();
+      ctx.arc(0,0,z.radius,0,Math.PI*2);
+      ctx.fill();
+
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = "#274d2b";
+      ctx.beginPath();
+      ctx.arc(-6,-3,3,0,Math.PI*2);
+      ctx.arc(6,-3,3,0,Math.PI*2);
+      ctx.fill();
+
+      ctx.strokeStyle = "#274d2b";
+      ctx.beginPath();
+      ctx.moveTo(-7,7);
+      ctx.lineTo(7,7);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    function drawPlayer() {
+      const p = player;
+
+      ctx.fillStyle = "#0005";
+      ctx.beginPath();
+      ctx.ellipse(p.x,p.y+35,Math.max(8,20-Math.abs(p.vy)*.4),5,0,0,Math.PI*2);
+      ctx.fill();
+
+      if(upgrades.shields > 0) {
+        ctx.save();
+        ctx.strokeStyle = "#80eeffb3";
+        ctx.lineWidth = 3;
+        ctx.shadowColor = "#80eeff";
+        ctx.shadowBlur = 15;
+        ctx.beginPath();
+        ctx.arc(p.x,p.y,p.radius+8,0,Math.PI*2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      ctx.save();
+      ctx.translate(p.x,p.y);
+      ctx.rotate(p.vx*.025);
+      ctx.shadowColor = "#b9efff";
+      ctx.shadowBlur = 18;
+
+      const gradient = ctx.createRadialGradient(-9,-11,3,0,0,p.radius);
+      gradient.addColorStop(0,"#f4feff");
+      gradient.addColorStop(.5,"#7dbbd5");
+      gradient.addColorStop(1,"#244866");
+
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(0,0,p.radius,0,Math.PI*2);
+      ctx.fill();
+
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = "#102b45";
+      ctx.beginPath();
+      ctx.arc(-6,-3,2.5,0,Math.PI*2);
+      ctx.arc(7,-3,2.5,0,Math.PI*2);
+      ctx.fill();
+
+      ctx.restore();
+
+      ctx.fillStyle = "#dff9ff";
+      ctx.font = "bold 11px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText("ПЛУТОН",p.x,p.y-35);
+    }
+
+    function circleRect(p,b) {
+      const x = Math.max(b.x,Math.min(p.x,b.x+b.width));
+      const y = Math.max(b.y,Math.min(p.y,b.y+b.height));
+      return (p.x-x)**2+(p.y-y)**2 < p.radius**2;
+    }
+
+    function collidePlatform(p,b) {
+      if(!circleRect(p,b)) return;
+
+      if(p.previousY+p.radius<=b.y+5 && p.vy>=0) {
+        p.y = b.y-p.radius;
+        p.vy = 0;
+        p.grounded = true;
+        p.coyote = 6;
+
+        if(b.moving) p.x += b.x-b.previousX;
+        return;
+      }
+
+      if(p.previousY-p.radius>=b.y+b.height-4 && p.vy<0) {
+        p.y = b.y+b.height+p.radius;
+        p.vy = 2;
+        return;
+      }
+
+      if(p.previousX+p.radius<=b.x+4) {
+        p.x = b.x-p.radius;
+        p.vx = 0;
+        return;
+      }
+
+      if(p.previousX-p.radius>=b.x+b.width-4) {
+        p.x = b.x+b.width+p.radius;
+        p.vx = 0;
+      }
+    }
+
+    function bounceRamp(r) {
+      const p = player;
+      if(p.rampCooldown>0) return;
+
+      const dx = r.x2-r.x1;
+      const dy = r.y2-r.y1;
+      const len2 = dx*dx+dy*dy;
+      if(!len2) return;
+
+      let t = ((p.x-r.x1)*dx+(p.y-r.y1)*dy)/len2;
+      t = Math.max(0,Math.min(1,t));
+
+      const x = r.x1+dx*t;
+      const y = r.y1+dy*t;
+
+      if(Math.hypot(p.x-x,p.y-y)>p.radius+10) return;
+
+      const len = Math.hypot(dx,dy);
+      let nx = -dy/len;
+      let ny = dx/len;
+
+      if(ny>0) {
+        nx *= -1;
+        ny *= -1;
+      }
+
+      p.vx = nx*7+dx/len*3;
+      p.vy = ny*15;
+      p.x += nx*5;
+      p.y += ny*8;
+      p.grounded = false;
+      p.rampCooldown = 18;
+    }
+
+    function closestPoint(point,x1,y1,x2,y2) {
+      const dx = x2-x1;
+      const dy = y2-y1;
+      const len2 = dx*dx+dy*dy;
+
+      if(!len2) return {x:x1,y:y1};
+
+      let t = ((point.x-x1)*dx+(point.y-y1)*dy)/len2;
+      t = Math.max(0,Math.min(1,t));
+
+      return {x:x1+dx*t,y:y1+dy*t};
+    }
+
+    function nearestAttachment(point) {
+      let result = null;
+      let best = ATTACH;
+
+      for(const p of platforms) {
+        const x = Math.max(p.x,Math.min(point.x,p.x+p.width));
+        const y = Math.max(p.y-8,Math.min(point.y,p.y+p.height));
+        const distance = Math.hypot(point.x-x,point.y-y);
+
+        if(distance<best) {
+          best = distance;
+          result = {x,y};
+        }
+      }
+
+      for(const r of ramps) {
+        const pointOnRamp = closestPoint(point,r.x1,r.y1,r.x2,r.y2);
+        const distance = Math.hypot(point.x-pointOnRamp.x,point.y-pointOnRamp.y);
+
+        if(distance<best) {
+          best = distance;
+          result = pointOnRamp;
+        }
+      }
+
+      return result;
+    }
+
+    function snap(point) {
+      return nearestAttachment(point) || point;
+    }
+
+    function oneEndAttached(ramp) {
+      return !!nearestAttachment({x:ramp.x1,y:ramp.y1}) || !!nearestAttachment({x:ramp.x2,y:ramp.y2});
+    }
+
+    function hurt(type) {
+      if(player.damageCooldown>0 || won) return;
+
+      lives--;
+      player.damageCooldown = 85;
+      player.vy = -8;
+      player.vx = player.x<W/2 ? -6 : 6;
+
+      if(lives<=0) {
+        message("💀 ПЛУТОН ПРОГРАВ!","Рівень починається знову.",100);
+        setTimeout(restartLevel,1100);
+      } else {
+        message(type==="lava" ? "🌋 ЛАВА ОБПЕКЛА!" : "💥 ЗОМБІ ВДАРИВ!",`Залишилося життів: ${lives}`,80);
+      }
+
+      updateUI();
+    }
+
+    function respawn() {
+      const p = startPos();
+
+      Object.assign(player,{
+        x:p.x,y:p.y,
+        previousX:p.x,previousY:p.y,
+        vx:0,vy:0,
+        grounded:false,
+        coyote:0,
+        rampCooldown:20,
+        damageCooldown:80
+      });
+    }
+
+    function restartLevel() {
+      closeShop();
+      closePause();
+      lives = MAX_LIVES;
+      loadLevel(false);
+      message("↻ РІВЕНЬ ПЕРЕЗАПУЩЕНО","Трампліни прибрані, а життя повернулися.",120);
+    }
+
+    function finish() {
+      if(won) return;
+
+      won = true;
+      const reward = 20+level*15;
+      coins += reward;
+      saveGame();
+      updateUI();
+
+      if(level===worlds.length-1) {
+        message(`🎉 ПЛУТОН ВДОМА! +${reward} 🪙`,"Ти пройшов усі світи!",99999);
+        return;
+      }
+
+      message(`⭐ РІВЕНЬ ПРОЙДЕНО! +${reward} 🪙`,"Наступний рівень буде складнішим.",100);
+
+      setTimeout(()=>{
+        level++;
+        lives = MAX_LIVES;
+        loadLevel();
+        openShop();
+      },1400);
+    }
+
+    function updateMovingRamps(time) {
+      for(const ramp of ramps) {
+        ramp.previousOffsetX = ramp.offsetX;
+        ramp.previousOffsetY = ramp.offsetY;
+
+        // Велика амплітуда, але мала швидкість руху.
+        ramp.offsetX = Math.sin(time*ramp.moveSpeed+ramp.phase) * ramp.amplitudeX;
+        ramp.offsetY = Math.cos(time*ramp.moveSpeed*.85+ramp.phase) * ramp.amplitudeY;
+
+        ramp.x1 = ramp.baseX1 + ramp.offsetX;
+        ramp.y1 = ramp.baseY1 + ramp.offsetY;
+        ramp.x2 = ramp.baseX2 + ramp.offsetX;
+        ramp.y2 = ramp.baseY2 + ramp.offsetY;
+      }
+    }
+
+    function update() {
+      if(!started || paused || shopOpen) return;
+
+      if(intro && --intro===0 && !won) {
+        $("message").textContent = "";
+      }
+
+      const time = performance.now();
+
+      for(const p of platforms) {
+        p.previousX = p.x;
+
+        if(p.moving) {
+          p.x = p.startX+Math.sin(time*p.speed+p.phase)*p.range;
+        }
+      }
+
+      updateMovingRamps(time);
+
+      for(const l of lavaPools) {
+        l.x = l.platform.x+l.platform.width/2-l.width/2;
+        l.y = l.platform.y-8;
+      }
+
+      if(won) return;
+
+      const p = player;
+      const left = touch.left || keys.KeyA || keys.a || keys["ф"];
+      const right = touch.right || keys.KeyD || keys.d || keys["в"];
+
+      if(p.rampCooldown>0) p.rampCooldown--;
+      if(p.damageCooldown>0) p.damageCooldown--;
+      if(p.coyote>0) p.coyote--;
+
+      if(left) p.vx -= moveForce();
+      if(right) p.vx += moveForce();
+
+      p.vx *= p.grounded ? .74 : .9;
+      p.vx = Math.max(-maxSpeed(),Math.min(maxSpeed(),p.vx));
+      p.vy = Math.min(MAX_FALL,p.vy+GRAVITY);
+
+      p.previousX = p.x;
+      p.previousY = p.y;
+
+      p.x += p.vx;
+      p.y += p.vy;
+      p.grounded = false;
+      p.x = Math.max(p.radius,Math.min(W-p.radius,p.x));
+
+      for(const b of platforms) collidePlatform(p,b);
+
+      for(const r of ramps) {
+        bounceRamp(r);
+      }
+
+      for(const z of zombies) {
+        z.offset += z.direction*z.speed;
+
+        if(z.offset<z.radius+5 || z.offset>z.platform.width-z.radius-5) {
+          z.direction *= -1;
+        }
+
+        z.offset = Math.max(z.radius+5,Math.min(z.platform.width-z.radius-5,z.offset));
+        z.x = z.platform.x+z.offset;
+        z.y = z.platform.y-z.radius-1;
+
+        if(Math.hypot(p.x-z.x,p.y-z.y)<p.radius+z.radius-4) {
+          hurt("zombie");
+        }
+      }
+
+      for(const l of lavaPools) {
+        const x = Math.max(l.x,Math.min(p.x,l.x+l.width));
+        const y = Math.max(l.y,Math.min(p.y,l.y+l.height));
+
+        if((p.x-x)**2+(p.y-y)**2<p.radius**2) {
+          hurt("lava");
+        }
+      }
+
+      if(Math.hypot(p.x-goal.x,p.y-goal.y)<p.radius+goal.radius+6) {
+        finish();
+      }
+
+      if(p.y>H+100) {
+        if(upgrades.shields>0) {
+          upgrades.shields--;
+          saveGame();
+          respawn();
+          message("🛡️ ЩИТ ВРЯТУВАВ ПЛУТОНА!","Повернення на старт.",100);
+          updateShop();
+        } else {
+          respawn();
+        }
+      }
+
+      updateUI();
+    }
+
+    function draw() {
+      drawBackground();
+
+      for(const p of platforms) drawPlatform(p);
+      for(const l of lavaPools) drawLava(l);
+      for(const r of ramps) drawRamp(r);
+
+      if(drawing && start && end) {
+        drawRamp({x1:start.x,y1:start.y,x2:end.x,y2:end.y},true,previewValid);
+      }
+
+      drawGoal();
+
+      for(const z of zombies) drawZombie(z);
+
+      drawPlayer();
+    }
+
+    function loop() {
+      update();
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    function pointer(e) {
+      const r = canvas.getBoundingClientRect();
+      return {x:e.clientX-r.left,y:e.clientY-r.top};
+    }
+
+    function limitEnd(from,to) {
+      const dx = to.x-from.x;
+      const dy = to.y-from.y;
+      const len = Math.hypot(dx,dy);
+      const max = maxRampLength();
+
+      if(!len || len<=max) return to;
+
+      return {
+        x:from.x+dx*max/len,
+        y:from.y+dy*max/len
+      };
+    }
+
+    function jump() {
+      if(started && !paused && !won && !shopOpen && (player.grounded || player.coyote>0)) {
+        player.vy = jumpPower();
+        player.grounded = false;
+        player.coyote = 0;
+      }
+    }
+
+    function setupControl(button,direction) {
+      button.addEventListener("pointerdown",e=>{
+        e.preventDefault();
+
+        if(!shopOpen && !paused) {
+          touch[direction] = true;
+        }
+
+        button.setPointerCapture(e.pointerId);
+      });
+
+      ["pointerup","pointercancel","pointerleave"].forEach(type=>{
+        button.addEventListener(type,()=>touch[direction]=false);
+      });
+    }
+
+    setupControl($("left"),"left");
+    setupControl($("right"),"right");
+
+    $("jump").addEventListener("pointerdown",e=>{
+      e.preventDefault();
+      jump();
+    });
+
+    $("startButton").onclick = ()=>{
+      $("startOverlay").classList.remove("open");
+      started = true;
+      message("ПОЇХАЛИ!","Трампліни мають велику амплітуду, але рухаються повільно.",150);
+    };
+
+    $("resetSave").onclick = ()=>{
+      if(confirm("Стерти всі монети та покращення?")) {
+        localStorage.removeItem("plutoJourneySave");
+        location.reload();
+      }
+    };
+
+    $("shopButton").onclick = openShop;
+    $("closeShop").onclick = closeShop;
+    $("restart").onclick = restartLevel;
+    $("continueButton").onclick = closePause;
+    $("pauseRestart").onclick = restartLevel;
+
+    $("shopOverlay").onclick = e=>{
+      if(e.target===$("shopOverlay")) closeShop();
+    };
+
+    $("buyJump").onclick = ()=>buy("jump",30);
+    $("buySpeed").onclick = ()=>buy("speed",30);
+    $("buyRamp").onclick = ()=>buy("ramp",35);
+    $("buyShield").onclick = ()=>buy("shield",20);
+
+    window.addEventListener("keydown",e=>{
+      keys[e.code] = true;
+      keys[e.key.toLowerCase()] = true;
+
+      if(["KeyA","KeyD","KeyW","Space"].includes(e.code)) {
+        e.preventDefault();
+      }
+
+      if(!e.repeat && (e.code==="KeyW" || e.code==="Space")) {
+        jump();
+      }
+
+      if(!e.repeat && e.code==="Escape") {
+        if(shopOpen) closeShop();
+        else if(paused) closePause();
+        else openPause();
+      }
+    });
+
+    window.addEventListener("keyup",e=>{
+      keys[e.code] = false;
+      keys[e.key.toLowerCase()] = false;
+    });
+
+    window.addEventListener("blur",()=>{
+      touch.left = false;
+      touch.right = false;
+      Object.keys(keys).forEach(k=>keys[k]=false);
+    });
+
+    canvas.addEventListener("pointerdown",e=>{
+      if(!started || won || paused || shopOpen || !rampsLeft) return;
+
+      const p = pointer(e);
+
+      if(p.y<45 || p.y>H-10) return;
+
+      drawing = true;
+      start = snap(p);
+      end = start;
+      previewValid = false;
+
+      canvas.setPointerCapture(e.pointerId);
+    });
+
+    canvas.addEventListener("pointermove",e=>{
+      if(!drawing) return;
+
+      end = snap(limitEnd(start,pointer(e)));
+
+      const ramp = {
+        x1:start.x,
+        y1:start.y,
+        x2:end.x,
+        y2:end.y
+      };
+
+      previewValid = Math.hypot(end.x-start.x,end.y-start.y)>=35 && oneEndAttached(ramp);
+    });
+
+    function finishDrawing() {
+      if(!drawing) return;
+
+      const ramp = {
+        baseX1:start.x,
+        baseY1:start.y,
+        baseX2:end.x,
+        baseY2:end.y,
+
+        x1:start.x,
+        y1:start.y,
+        x2:end.x,
+        y2:end.y,
+
+        // Велика амплітуда руху.
+        amplitudeX:55 + Math.random()*35,
+        amplitudeY:42 + Math.random()*28,
+
+        // Повільний рух.
+        moveSpeed:.00045 + Math.random()*.00018,
+        phase:Math.random()*Math.PI*2,
+
+        offsetX:0,
+        offsetY:0,
+        previousOffsetX:0,
+        previousOffsetY:0
+      };
+
+      const length = Math.hypot(end.x-start.x,end.y-start.y);
+
+      if(length>=35 && oneEndAttached(ramp)) {
+        ramps.push(ramp);
+        rampsLeft--;
+      } else if(length>=35) {
+        message("🔒 НЕМАЄ КРІПЛЕННЯ","Хоча б один кінець трампліна має торкатися землі, платформи або іншого трампліна.",120);
+      }
+
+      drawing = false;
+      start = null;
+      end = null;
+      previewValid = false;
+      updateUI();
+    }
+
+    canvas.addEventListener("pointerup",finishDrawing);
+
+    canvas.addEventListener("pointercancel",()=>{
+      drawing = false;
+      start = null;
+      end = null;
+      previewValid = false;
+    });
+
+    function resize() {
+      const dpr = devicePixelRatio || 1;
+
+      canvas.width = innerWidth*dpr;
+      canvas.height = innerHeight*dpr;
+      canvas.style.width = innerWidth+"px";
+      canvas.style.height = innerHeight+"px";
+
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+
+      W = innerWidth;
+      H = innerHeight;
+
+      makeStars();
+      loadLevel(started);
+    }
+
+    window.addEventListener("resize",resize);
+
+    resize();
+    updateShop();
+    loop();
+  </script>
+</body>
+</html>
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Hello, World!</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+      <h1 class="title">Hello World!</h1>
+      <p id="currentTime"></p>
+      <script src="script.js"></script>
+  </body>
+</html>
